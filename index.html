@@ -1,0 +1,125 @@
+<!DOCTYPE html >
+<html lang="es">
+  <head>
+      <title>Visualizador de Ficheros SEPA</title>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+
+      <!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+
+<!-- Optional theme -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.4.min.js" crossorigin="anonymous"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+  </head>
+  <body>
+
+    <div class="page-header">
+      <h1>JMSM <small>Visor SEPA</small>
+    </div>
+    <div class="container">
+      <div class="panel panel-default">
+        <div class="panel-heading">Seleccione Remesa</div>
+        <div class="panel-body">
+          <input type="file" id="files"   />
+        </div>
+      </div>
+
+      <p><strong>Leidos: </strong> <span id="procesados"></span></p>
+
+      <div class="panel panel-default">
+        <div class="panel-heading">Resumen</div>
+      </div>
+      <div class="well well-lg">
+        <p><strong>Presentador:</strong> <span id="nmpresentador"></span> - <span id="idpresentador"></span> </p>
+        <p><strong>Remesa:</strong> <span id="idRemesa"></span></p>
+        <p><strong>Importe:</strong> <span id="impTotal"></span>€</p>
+        <p><strong>Operaciones:</strong> <span id="numOperaciones"></span></p>
+
+      </div>
+
+      <div class="panel panel-default">
+        <div class="panel-heading">Detelle Clientes</div>
+          <table class="table">
+            <thead>
+                <th>Nombre</th>
+                <th>Oberv.</th>
+                <th>Importe</th>
+                <th>Cuenta</th>
+                <th>Secuencia</th>
+                <th>Tipo</th>
+            </thead>
+            <tbody id="tbody">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <script>
+    function handleFileSelect(evt) {
+      var total =0;
+      var files = evt.target.files;
+
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        parser = new DOMParser();
+        xmlDoc = parser.parseFromString(reader.result,"text/xml");
+        xmlDoc.async=false;
+
+        var header = xmlDoc.getElementsByTagName("GrpHdr")[0];
+        document.getElementById('impTotal').innerHTML=header.getElementsByTagName("CtrlSum")[0].childNodes[0].nodeValue;
+        total = header.getElementsByTagName("NbOfTxs")[0].childNodes[0].nodeValue;
+        document.getElementById('numOperaciones').innerHTML=total;
+        document.getElementById('idRemesa').innerHTML=header.getElementsByTagName("MsgId")[0].childNodes[0].nodeValue;
+        var table = document.getElementById('tbody');
+
+        var presentador = header.getElementsByTagName("InitgPty")[0];
+        header = null;
+        document.getElementById('nmpresentador').innerHTML=presentador.getElementsByTagName("Nm")[0].childNodes[0].nodeValue;
+        document.getElementById('idpresentador').innerHTML=presentador.getElementsByTagName("OrgId")[0].getElementsByTagName("Id")[0].childNodes[0].nodeValue;
+        presentador = null;
+
+        var acreedores = xmlDoc.getElementsByTagName("PmtInf");
+        var tipo = null;
+        var modo = null;
+        var importe = null;
+        var name = null;
+        var ccc =null;
+        var out= [];
+        var contador =0;
+        var procesadosNodo = document.getElementById("procesados");
+        var content = [];
+        for (var i =0; i<=acreedores.length;i++ ){
+          modo = acreedores[i].getElementsByTagName("LclInstrm")[0].childNodes[1].childNodes[0].nodeValue;
+          tipo = acreedores[i].getElementsByTagName("SeqTp")[0].childNodes[0].nodeValue;
+
+          cobros = acreedores[i].getElementsByTagName("DrctDbtTxInf");
+          for (var j=0; j<cobros.length; j++) {
+            try{
+              out= [];
+              name = cobros[j].getElementsByTagName("Dbtr")[0].childNodes[1].childNodes[0].nodeValue;
+              importe = cobros[j].getElementsByTagName("InstdAmt")[0].childNodes[0].nodeValue;
+              ccc = cobros[j].getElementsByTagName("DbtrAcct")[0].childNodes[1].childNodes[1].childNodes[0].nodeValue;
+              obs = cobros[j].getElementsByTagName("Ustrd")[0].childNodes[0].nodeValue;
+              out.push('<tr>','<td>',name,'</td>','<td>',obs,'</td>','<td>',importe,'</td>','<td>',ccc,'</td>','<td>',tipo,'</td>','<td>',modo,'</td>','</tr>');
+              content.push(out.join(''));
+              contador ++;
+              procesadosNodo.innerHTML=contador;
+            }catch (err) {
+              alert(err);
+              alert(j+': '+cobros[j]);
+            }
+          }
+          table.innerHTML = content.join('');
+        }
+      }
+      reader.readAsText(files[0]);
+    }
+
+    document.getElementById('files').addEventListener('change', handleFileSelect, false);
+    </script>
+
+  </body>
